@@ -1,6 +1,31 @@
 # Configuration Reference
 
-Codex Remote SSH reads host aliases from either `REMOTE_SSH_HOSTS` or `REMOTE_SSH_CONFIG_FILE`.
+Codex Remote SSH can save connection profiles automatically. Most users should ask Codex to add a connection instead of editing JSON by hand.
+
+```text
+Add an SSH connection named my-server for user@hostname on port 22 using identity file ~/.ssh/id_rsa.
+```
+
+Saved profiles are stored at:
+
+```text
+~/.codex/remote-ssh-hosts.json
+```
+
+Advanced users can override this with `REMOTE_SSH_CONFIG_FILE` or provide ephemeral configuration with `REMOTE_SSH_HOSTS`.
+
+## Automatic Connection Setup
+
+`remote_add_host` accepts the same fields users expect from a modern Remote SSH form:
+
+| Form Field | Tool Field | Notes |
+| --- | --- | --- |
+| Name | `name` | Friendly alias such as `my-server`. |
+| SSH Host | `sshHost` | `user@hostname` or a host from `~/.ssh/config`. |
+| SSH Port | `port` | Defaults to `22`. |
+| Identity File | `identityFile` | Optional. Leave empty to use default SSH behavior. |
+| Allowed Paths | `allowedPaths` | Optional safety policy for file tools. |
+| Allow Writes | `allowWrites` | Defaults to `false`. |
 
 ## `REMOTE_SSH_HOSTS`
 
@@ -74,4 +99,3 @@ $env:REMOTE_SSH_AUDIT_LOG="$HOME\.codex\remote-ssh-audit.jsonl"
 ```
 
 Each record includes timestamp, tool name, host alias, command phase, exit code, timeout status, and duration.
-

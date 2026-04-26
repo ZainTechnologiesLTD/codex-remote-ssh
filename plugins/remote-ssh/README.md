@@ -10,6 +10,7 @@ Modern teams often keep source code, logs, services, and deployment tools on rem
 
 This plugin exposes clear tools for common remote work:
 
+- add and save SSH connections conversationally
 - discover configured host aliases
 - run non-interactive remote commands
 - list directories
@@ -46,7 +47,19 @@ For local development, keep this plugin folder under a repo-level `plugins/remot
 
 ## Configuration
 
-Configure hosts through `REMOTE_SSH_HOSTS` or `REMOTE_SSH_CONFIG_FILE`.
+Most users should add connections conversationally:
+
+```text
+Add an SSH connection named hms for hmsadmin@192.168.128.7 using identity file ~/.ssh/id_ed25519_hms.
+```
+
+The plugin saves profiles to:
+
+```text
+~/.codex/remote-ssh-hosts.json
+```
+
+Advanced users can still configure hosts through `REMOTE_SSH_HOSTS` or `REMOTE_SSH_CONFIG_FILE`.
 
 PowerShell example:
 
@@ -90,6 +103,9 @@ Use Remote SSH to tail the last 100 lines of /var/log/nginx/error.log on hms.
 
 | Tool | Purpose |
 | --- | --- |
+| `remote_add_host` | Saves or updates an SSH connection profile. |
+| `remote_remove_host` | Removes a saved SSH connection profile. |
+| `remote_test_connection` | Validates a saved SSH connection. |
 | `remote_hosts` | Lists configured host aliases and non-secret policy metadata. |
 | `remote_run` | Runs a non-interactive command on a configured host. |
 | `remote_list_dir` | Lists an allowlisted directory. |

@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.3.0";
 const PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_CONNECT_TIMEOUT_SECONDS = 15;
@@ -56,6 +56,24 @@ function parseJson(raw, label) {
   }
 }
 
+function defaultConfigFile() {
+  return path.join(os.homedir(), ".codex", "remote-ssh-hosts.json");
+}
+
+function activeConfigFile() {
+  return expandHome(process.env.REMOTE_SSH_CONFIG_FILE || defaultConfigFile());
+}
+
+function ensureConfigShape(config) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    return { hosts: {} };
+  }
+  if (config.hosts && typeof config.hosts === "object" && !Array.isArray(config.hosts)) {
+    return config;
+  }
+  return { hosts: config };
+}
+
 function loadHostConfig() {
   const configFile = process.env.REMOTE_SSH_CONFIG_FILE;
   if (configFile) {
@@ -64,7 +82,58 @@ function loadHostConfig() {
     return parsed.hosts || parsed;
   }
 
-  return parseJson(process.env.REMOTE_SSH_HOSTS || "{}", "REMOTE_SSH_HOSTS");
+  const envHosts = process.env.REMOTE_SSH_HOSTS;
+  if (envHosts) {
+    return parseJson(envHosts, "REMOTE_SSH_HOSTS");
+  }
+
+  const resolved = defaultConfigFile();
+  if (!fs.existsSync(resolved)) return {};
+  const parsed = parseJson(fs.readFileSync(resolved, "utf8"), resolved);
+  return parsed.hosts || parsed;
+}
+
+function readWritableConfig() {
+  const resolved = activeConfigFile();
+  if (!fs.existsSync(resolved)) return { file: resolved, config: { hosts: {} } };
+  return {
+    file: resolved,
+    config: ensureConfigShape(parseJson(fs.readFileSync(resolved, "utf8"), resolved)),
+  };
+}
+
+function writeWritableConfig(file, config) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+}
+
+function parseSshHost(input) {
+  const value = String(input || "").trim();
+  if (!value) throw new Error("SSH host is required.");
+  if (value.includes("@")) {
+    const [user, ...hostParts] = value.split("@");
+    const host = hostParts.join("@");
+    if (!user || !host) throw new Error("SSH host must look like user@hostname.");
+    return { user, host };
+  }
+  return { sshConfigHost: value };
+}
+
+function cleanHostProfile(args) {
+  const parsed = parseSshHost(args.sshHost);
+  const profile = {
+    ...parsed,
+    port: args.port || 22,
+    identityFile: args.identityFile || undefined,
+    allowedPaths: Array.isArray(args.allowedPaths) ? args.allowedPaths : [],
+    allowWrites: Boolean(args.allowWrites),
+    strictHostKeyChecking: args.strictHostKeyChecking !== false,
+    connectTimeoutSeconds: args.connectTimeoutSeconds || DEFAULT_CONNECT_TIMEOUT_SECONDS,
+    commandTimeoutMs: args.commandTimeoutMs || DEFAULT_COMMAND_TIMEOUT_MS,
+    maxOutputBytes: args.maxOutputBytes || DEFAULT_MAX_OUTPUT_BYTES,
+  };
+
+  return Object.fromEntries(Object.entries(profile).filter(([, value]) => value !== undefined));
 }
 
 function getHost(alias) {
@@ -263,6 +332,57 @@ function textResult(payload) {
 
 const tools = [
   {
+    name: "remote_add_host",
+    description: "Add or update a saved SSH connection profile in the Remote SSH config file.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Friendly connection name, used as the host alias." },
+        sshHost: { type: "string", description: "user@hostname or a host alias from ~/.ssh/config." },
+        port: { type: "integer", minimum: 1, maximum: 65535, default: 22 },
+        identityFile: { type: "string", description: "Optional private key path. Supports ~." },
+        allowedPaths: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional remote path allowlist for file tools.",
+          default: [],
+        },
+        allowWrites: { type: "boolean", default: false },
+        strictHostKeyChecking: { type: "boolean", default: true },
+        connectTimeoutSeconds: { type: "integer", minimum: 1, default: 15 },
+        commandTimeoutMs: { type: "integer", minimum: 1000, default: 120000 },
+        maxOutputBytes: { type: "integer", minimum: 1024, default: 1048576 },
+        overwrite: { type: "boolean", default: false },
+      },
+      required: ["name", "sshHost"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_remove_host",
+    description: "Remove a saved SSH connection profile from the Remote SSH config file.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Host alias to remove." },
+      },
+      required: ["name"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_test_connection",
+    description: "Test a configured SSH connection with a small non-interactive command.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string", description: "Configured host alias." },
+      },
+      required: ["host"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "remote_hosts",
     description: "List configured SSH host aliases and their non-secret policy metadata.",
     inputSchema: {
@@ -355,6 +475,36 @@ const tools = [
 ];
 
 async function callTool(name, args) {
+  if (name === "remote_add_host") {
+    const alias = String(args.name || "").trim();
+    if (!alias || !/^[A-Za-z0-9_.-]+$/.test(alias)) {
+      throw new Error("Connection name must contain only letters, numbers, dots, underscores, or hyphens.");
+    }
+    const { file, config } = readWritableConfig();
+    if (config.hosts[alias] && !args.overwrite) {
+      throw new Error(`Connection ${alias} already exists. Pass overwrite=true to update it.`);
+    }
+    config.hosts[alias] = cleanHostProfile(args);
+    writeWritableConfig(file, config);
+    return textResult({
+      saved: true,
+      name: alias,
+      configFile: file,
+      profile: redactConfig({ alias, ...config.hosts[alias] }),
+    });
+  }
+
+  if (name === "remote_remove_host") {
+    const alias = String(args.name || "").trim();
+    const { file, config } = readWritableConfig();
+    if (!config.hosts[alias]) {
+      throw new Error(`Connection ${alias} does not exist in ${file}.`);
+    }
+    delete config.hosts[alias];
+    writeWritableConfig(file, config);
+    return textResult({ removed: true, name: alias, configFile: file });
+  }
+
   if (name === "remote_hosts") {
     const hosts = loadHostConfig();
     return textResult({
@@ -365,6 +515,10 @@ async function callTool(name, args) {
   }
 
   const config = getHost(args.host);
+
+  if (name === "remote_test_connection") {
+    return textResult(await runSsh(config, "printf 'connected\\n'; hostname; whoami", name));
+  }
 
   if (name === "remote_run") {
     assertCommandAllowed(config, args.command);
@@ -465,6 +619,8 @@ if (require.main === module) {
 module.exports = {
   assertCommandAllowed,
   assertPathAllowed,
+  cleanHostProfile,
+  defaultConfigFile,
   expandHome,
   handle,
   loadHostConfig,

@@ -13,13 +13,15 @@ plugins/remote-ssh
 Install the plugin directly:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin --global
 ```
+
+Global installation is recommended so the plugin appears across Codex projects after restart. For a single project, use `--project` instead of `--global`.
 
 Or install from the repository catalog:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --global
 ```
 
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.

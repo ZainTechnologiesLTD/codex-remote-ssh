@@ -38,16 +38,16 @@ This plugin exposes clear tools for common remote work:
 When published to GitHub:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin --global
 ```
 
 If the repository keeps the included `.agents/plugins/marketplace.json` catalog, users can install all plugins from the repo with:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --global
 ```
 
-For local development, keep this plugin folder under a repo-level `plugins/remote-ssh` directory and reference it from `.agents/plugins/marketplace.json`.
+Global installation is recommended so Remote SSH appears across Codex projects after restart. For local development or one-project installs, use `--project` instead of `--global`.
 
 ## Configuration
 

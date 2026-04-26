@@ -36,14 +36,16 @@ plugins/remote-ssh/.codex-plugin/plugin.json
 Install command format once published from GitHub:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh/plugins/remote-ssh --plugin --global
 ```
 
 Catalog install command:
 
 ```bash
-npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins
+npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --global
 ```
+
+Use `--project` instead of `--global` when documenting a single-workspace install.
 
 ## GitHub Packages
 

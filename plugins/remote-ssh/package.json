@@ -1,9 +1,52 @@
 {
-  "name": "@zain-technologies-ltd/codex-remote-ssh",
+  "name": "@zaintechnologiesltd/codex-remote-ssh",
   "version": "0.2.0",
-  "private": true,
   "description": "Enterprise-grade Remote SSH MCP tools for OpenAI Codex.",
   "license": "MIT",
+  "author": {
+    "name": "Zain Technologies LTD",
+    "url": "https://zaintechnologiesltd.github.io/"
+  },
+  "homepage": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZainTechnologiesLTD/codex-remote-ssh.git",
+    "directory": "plugins/remote-ssh"
+  },
+  "bugs": {
+    "url": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh/issues"
+  },
+  "keywords": [
+    "codex",
+    "codex-plugin",
+    "mcp",
+    "ssh",
+    "remote-ssh",
+    "remote-development",
+    "devops",
+    "developer-tools"
+  ],
+  "bin": {
+    "codex-remote-ssh-mcp": "scripts/remote-ssh-mcp.js"
+  },
+  "files": [
+    ".codex-plugin/",
+    ".mcp.json",
+    "assets/",
+    "scripts/",
+    "skills/",
+    "ARCHITECTURE.md",
+    "CHANGELOG.md",
+    "CONFIGURATION.md",
+    "LICENSE",
+    "PRIVACY.md",
+    "README.md",
+    "SECURITY.md",
+    "TERMS.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "test": "node test/remote-ssh-mcp.test.js",
     "mcp:tools": "node scripts/remote-ssh-mcp.js"
@@ -12,4 +55,3 @@
     "node": ">=18"
   }
 }
-

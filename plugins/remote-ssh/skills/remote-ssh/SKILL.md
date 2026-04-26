@@ -17,7 +17,8 @@ Use this skill when the user asks Codex to inspect or operate a configured remot
    - optional identity file
    - optional workspace root
    - optional allowed remote paths
-   Then use `remote_add_host` and test with `remote_test_connection`.
+   Then use `remote_connection_wizard` and test with `remote_test_connection`.
+   Use `remote_add_host` only when the user asks for advanced policy fields such as workspace root, allowed paths, or write access.
 3. When the user wants to work in a remote project, prefer workspace tools:
    - use `remote_workspace_bootstrap` to check environment readiness
    - use `remote_tree` to inspect project structure

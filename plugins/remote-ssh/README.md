@@ -77,6 +77,21 @@ Most users should add connections conversationally:
 Add an SSH connection named hms for hmsadmin@192.168.128.7 using identity file ~/.ssh/id_ed25519_hms.
 ```
 
+If Codex renders the tool as a form, the normal setup only needs:
+
+```text
+Name
+SSH Host
+SSH Port
+Identity File (Private Key)
+```
+
+If the plugin UI is unavailable, use the terminal fallback:
+
+```bash
+codex-remote-ssh add
+```
+
 The plugin saves profiles to:
 
 ```text
@@ -127,6 +142,7 @@ Use Remote SSH to tail the last 100 lines of /var/log/nginx/error.log on hms.
 
 | Tool | Purpose |
 | --- | --- |
+| `remote_connection_wizard` | Adds a connection with the simple Name, SSH Host, SSH Port, Identity File form. |
 | `remote_add_host` | Saves or updates an SSH connection profile. |
 | `remote_remove_host` | Removes a saved SSH connection profile. |
 | `remote_test_connection` | Validates a saved SSH connection. |

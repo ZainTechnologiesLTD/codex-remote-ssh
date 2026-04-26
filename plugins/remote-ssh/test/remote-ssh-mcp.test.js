@@ -34,6 +34,7 @@ assert.throws(() => assertCommandAllowed(config, "cat /etc/passwd"), /allowlist/
 assert.throws(() => assertCommandAllowed({ ...config, allowedCommands: [] }, "rm -rf /srv/app"), /policy/);
 
 assert.ok(tools.some((tool) => tool.name === "remote_hosts"));
+assert.ok(tools.some((tool) => tool.name === "remote_connection_wizard"));
 assert.ok(tools.some((tool) => tool.name === "remote_add_host"));
 assert.ok(tools.some((tool) => tool.name === "remote_remove_host"));
 assert.ok(tools.some((tool) => tool.name === "remote_test_connection"));
@@ -87,6 +88,6 @@ assert.deepEqual(
 assert.equal(base64Text("hello"), "aGVsbG8=");
 
 handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }).then((response) => {
-  assert.ok(response.tools.length >= 15);
+  assert.ok(response.tools.length >= 16);
   console.log("remote-ssh-mcp tests passed");
 });

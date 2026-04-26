@@ -16,7 +16,7 @@ Advanced users can override this with `REMOTE_SSH_CONFIG_FILE` or provide epheme
 
 ## Automatic Connection Setup
 
-`remote_add_host` accepts the same fields users expect from a modern Remote SSH form:
+`remote_connection_wizard` accepts the same fields users expect from a modern Remote SSH form:
 
 | Form Field | Tool Field | Notes |
 | --- | --- | --- |
@@ -27,6 +27,14 @@ Advanced users can override this with `REMOTE_SSH_CONFIG_FILE` or provide epheme
 | Workspace Root | `workspaceRoot` | Optional default remote project root. |
 | Allowed Paths | `allowedPaths` | Optional safety policy for file tools. |
 | Allow Writes | `allowWrites` | Defaults to `false`. |
+
+Advanced users and admins can use `remote_add_host` for policy fields such as `workspaceRoot`, `allowedPaths`, and `allowWrites`.
+
+Terminal fallback:
+
+```bash
+codex-remote-ssh add
+```
 
 ## `REMOTE_SSH_HOSTS`
 

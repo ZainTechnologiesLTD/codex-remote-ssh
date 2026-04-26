@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.4.0";
+const SERVER_VERSION = "0.5.0";
 const PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_CONNECT_TIMEOUT_SECONDS = 15;
@@ -355,6 +355,42 @@ function textResult(payload) {
 
 const tools = [
   {
+    name: "remote_connection_wizard",
+    description: "Add SSH connection using the simple user-facing form: Name, SSH Host, SSH Port, and Identity File.",
+    inputSchema: {
+      type: "object",
+      title: "Add SSH connection",
+      description: "Connect to a remote machine for Codex remote work.",
+      properties: {
+        name: {
+          type: "string",
+          title: "Name",
+          description: "A friendly name for this SSH connection, such as My Server.",
+        },
+        sshHost: {
+          type: "string",
+          title: "SSH Host",
+          description: "user@myserver.com or a host from ~/.ssh/config.",
+        },
+        port: {
+          type: "integer",
+          title: "SSH Port",
+          description: "Leave empty to use default 22 or SSH config.",
+          minimum: 1,
+          maximum: 65535,
+          default: 22,
+        },
+        identityFile: {
+          type: "string",
+          title: "Identity File (Private Key)",
+          description: "Leave empty to use default SSH key or SSH config. Example: ~/.ssh/id_rsa.",
+        },
+      },
+      required: ["name", "sshHost"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "remote_add_host",
     description: "Add or update a saved SSH connection profile in the Remote SSH config file.",
     inputSchema: {
@@ -575,7 +611,7 @@ const tools = [
 ];
 
 async function callTool(name, args) {
-  if (name === "remote_add_host") {
+  if (name === "remote_connection_wizard" || name === "remote_add_host") {
     const alias = String(args.name || "").trim();
     if (!alias || !/^[A-Za-z0-9_.-]+$/.test(alias)) {
       throw new Error("Connection name must contain only letters, numbers, dots, underscores, or hyphens.");
@@ -788,8 +824,11 @@ module.exports = {
   handle,
   loadHostConfig,
   normalizeRemotePath,
+  readWritableConfig,
+  redactConfig,
   resolveRemoteWorkspacePath,
   shellQuote,
   startServer,
   tools,
+  writeWritableConfig,
 };

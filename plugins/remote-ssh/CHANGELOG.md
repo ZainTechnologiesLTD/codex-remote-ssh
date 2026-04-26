@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Added `remote_connection_wizard`, a simple user-facing Add SSH Connection tool with only Name, SSH Host, SSH Port, and Identity File fields.
+- Added `codex-remote-ssh add` CLI fallback for users who need a terminal-based setup flow.
+- Added `codex-remote-ssh list` for inspecting saved connection profiles without secrets.
+
 ## 0.4.0
 
 - Added remote workspace bootstrap checks for OS, shell, user, workspace path, and common development tools.

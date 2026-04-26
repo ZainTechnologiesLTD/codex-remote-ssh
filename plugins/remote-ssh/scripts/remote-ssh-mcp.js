@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.3.1";
+const SERVER_VERSION = "0.4.0";
 const PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_CONNECT_TIMEOUT_SECONDS = 15;
@@ -121,11 +121,13 @@ function parseSshHost(input) {
 
 function cleanHostProfile(args) {
   const parsed = parseSshHost(args.sshHost);
+  const allowedPaths = Array.isArray(args.allowedPaths) ? args.allowedPaths : [];
   const profile = {
     ...parsed,
     port: args.port || 22,
     identityFile: args.identityFile || undefined,
-    allowedPaths: Array.isArray(args.allowedPaths) ? args.allowedPaths : [],
+    workspaceRoot: args.workspaceRoot || undefined,
+    allowedPaths: allowedPaths.length > 0 ? allowedPaths : args.workspaceRoot ? [args.workspaceRoot] : [],
     allowWrites: Boolean(args.allowWrites),
     strictHostKeyChecking: args.strictHostKeyChecking !== false,
     connectTimeoutSeconds: args.connectTimeoutSeconds || DEFAULT_CONNECT_TIMEOUT_SECONDS,
@@ -193,6 +195,10 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function base64Text(value) {
+  return Buffer.from(String(value), "utf8").toString("base64");
+}
+
 function normalizeRemotePath(remotePath) {
   if (!remotePath || typeof remotePath !== "string") {
     throw new Error("Remote path must be a non-empty string.");
@@ -219,6 +225,23 @@ function assertPathAllowed(config, remotePath, operation) {
   }
 
   return normalized;
+}
+
+function resolveRemoteWorkspacePath(config, root, relativePath, operation) {
+  const workspaceRoot = normalizeRemotePath(root || config.workspaceRoot || "/");
+  assertPathAllowed(config, workspaceRoot, operation);
+
+  const requested = relativePath ? String(relativePath) : ".";
+  if (requested.startsWith("/")) {
+    return assertPathAllowed(config, requested, operation);
+  }
+
+  const resolved = path.posix.normalize(path.posix.join(workspaceRoot, requested));
+  if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}/`)) {
+    throw new Error(`${operation} denied because path escapes workspace root: ${requested}`);
+  }
+
+  return assertPathAllowed(config, resolved, operation);
 }
 
 function assertCommandAllowed(config, command) {
@@ -341,6 +364,7 @@ const tools = [
         sshHost: { type: "string", description: "user@hostname or a host alias from ~/.ssh/config." },
         port: { type: "integer", minimum: 1, maximum: 65535, default: 22 },
         identityFile: { type: "string", description: "Optional private key path. Supports ~." },
+        workspaceRoot: { type: "string", description: "Optional default remote project/workspace root." },
         allowedPaths: {
           type: "array",
           items: { type: "string" },
@@ -401,6 +425,82 @@ const tools = [
         command: { type: "string", description: "Remote shell command to run." },
       },
       required: ["host", "command"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_workspace_bootstrap",
+    description: "Inspect remote OS, user, shell, workspace path, and common development tools.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string" },
+        root: { type: "string", description: "Optional absolute remote workspace root." },
+      },
+      required: ["host"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_tree",
+    description: "Show a bounded remote workspace tree using find.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string" },
+        root: { type: "string", description: "Optional absolute remote workspace root." },
+        path: { type: "string", description: "Relative path inside the workspace root.", default: "." },
+        maxDepth: { type: "integer", minimum: 1, maximum: 8, default: 3 },
+        limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+      },
+      required: ["host"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_search_text",
+    description: "Search for text inside a remote workspace. Uses rg when available, with grep fallback.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string" },
+        root: { type: "string", description: "Optional absolute remote workspace root." },
+        path: { type: "string", description: "Relative path inside the workspace root.", default: "." },
+        query: { type: "string", description: "Literal text or regex to search for." },
+        regex: { type: "boolean", default: false },
+        limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+      },
+      required: ["host", "query"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_git_status",
+    description: "Run git status in a remote workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string" },
+        root: { type: "string", description: "Optional absolute remote workspace root." },
+      },
+      required: ["host"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_replace_in_file",
+    description: "Replace exact UTF-8 text in an allowlisted remote file. Requires allowWrites=true.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string" },
+        root: { type: "string", description: "Optional absolute remote workspace root." },
+        path: { type: "string", description: "Absolute path or relative path inside the workspace root." },
+        oldText: { type: "string", description: "Exact text to replace." },
+        newText: { type: "string", description: "Replacement text." },
+        expectedReplacements: { type: "integer", minimum: 1, default: 1 },
+      },
+      required: ["host", "path", "oldText", "newText"],
       additionalProperties: false,
     },
   },
@@ -524,6 +624,70 @@ async function callTool(name, args) {
     assertCommandAllowed(config, args.command);
     return textResult(await runSsh(config, args.command, name));
   }
+  if (name === "remote_workspace_bootstrap") {
+    const root = args.root || config.workspaceRoot || "~";
+    const rootTarget = root === "~" ? "~" : shellQuote(root);
+    const command = [
+      "printf 'user='; whoami",
+      "printf 'host='; hostname",
+      "printf 'os='; uname -a",
+      "printf 'shell='; printf %s \"$SHELL\"; printf '\\n'",
+      `printf 'workspace='; cd ${rootTarget} 2>/dev/null && pwd || printf 'unavailable'`,
+      "p=$(command -v node 2>/dev/null || true); printf 'node=%s\\n' \"${p:-missing}\"",
+      "p=$(command -v npm 2>/dev/null || true); printf 'npm=%s\\n' \"${p:-missing}\"",
+      "p=$(command -v git 2>/dev/null || true); printf 'git=%s\\n' \"${p:-missing}\"",
+      "p=$(command -v rg 2>/dev/null || true); printf 'rg=%s\\n' \"${p:-missing}\"",
+      "p=$(command -v python3 2>/dev/null || true); printf 'python3=%s\\n' \"${p:-missing}\"",
+    ].join("; ");
+    return textResult(await runSsh(config, command, name));
+  }
+  if (name === "remote_tree") {
+    const target = resolveRemoteWorkspacePath(config, args.root, args.path || ".", "tree");
+    const maxDepth = Math.max(1, Math.min(Number(args.maxDepth || 3), 8));
+    const limit = Math.max(1, Math.min(Number(args.limit || 200), 1000));
+    const command = `find ${shellQuote(target)} -maxdepth ${maxDepth} -mindepth 1 -not -path '*/.git/*' -print | sort | head -n ${limit}`;
+    return textResult(await runSsh(config, command, name));
+  }
+  if (name === "remote_search_text") {
+    const target = resolveRemoteWorkspacePath(config, args.root, args.path || ".", "search");
+    const limit = Math.max(1, Math.min(Number(args.limit || 200), 1000));
+    const fixed = args.regex ? "" : "-F";
+    const grepMode = args.regex ? "-E" : "-F";
+    const command = [
+      "if command -v rg >/dev/null 2>&1; then",
+      `rg --line-number --hidden --glob '!.git' ${fixed} ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      "else",
+      `grep -RIn ${grepMode} --exclude-dir=.git ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      "fi",
+    ].join(" ");
+    return textResult(await runSsh(config, command, name));
+  }
+  if (name === "remote_git_status") {
+    const root = resolveRemoteWorkspacePath(config, args.root, ".", "git status");
+    return textResult(await runSsh(config, `cd ${shellQuote(root)} && git status --short --branch`, name));
+  }
+  if (name === "remote_replace_in_file") {
+    if (!config.allowWrites) {
+      throw new Error(`Writes are disabled for host alias ${config.alias}. Set allowWrites=true to enable.`);
+    }
+    const remotePath = resolveRemoteWorkspacePath(config, args.root, args.path, "replace");
+    const expected = Math.max(1, Number(args.expectedReplacements || 1));
+    const script = [
+      "import base64, pathlib",
+      `p = pathlib.Path(${JSON.stringify(remotePath)})`,
+      `old = base64.b64decode(${JSON.stringify(base64Text(args.oldText))}).decode('utf-8')`,
+      `new = base64.b64decode(${JSON.stringify(base64Text(args.newText))}).decode('utf-8')`,
+      "text = p.read_text(encoding='utf-8')",
+      "count = text.count(old)",
+      `expected = ${expected}`,
+      "if count != expected:",
+      "    raise SystemExit(f'expected {expected} replacement(s), found {count}')",
+      "p.write_text(text.replace(old, new), encoding='utf-8')",
+      "print(f'replaced {count} occurrence(s)')",
+    ].join("\n");
+    const command = `python3 -c ${shellQuote(script)}`;
+    return textResult(await runSsh(config, command, name));
+  }
   if (name === "remote_read_file") {
     const remotePath = assertPathAllowed(config, args.path, "read");
     return textResult(await runSsh(config, `cat -- ${shellQuote(remotePath)}`, name));
@@ -617,12 +781,14 @@ if (require.main === module) {
 module.exports = {
   assertCommandAllowed,
   assertPathAllowed,
+  base64Text,
   cleanHostProfile,
   defaultConfigFile,
   expandHome,
   handle,
   loadHostConfig,
   normalizeRemotePath,
+  resolveRemoteWorkspacePath,
   shellQuote,
   startServer,
   tools,

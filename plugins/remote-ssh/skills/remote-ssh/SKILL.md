@@ -15,16 +15,23 @@ Use this skill when the user asks Codex to inspect or operate a configured remot
    - SSH host as `user@hostname` or a `~/.ssh/config` host
    - optional port
    - optional identity file
+   - optional workspace root
    - optional allowed remote paths
    Then use `remote_add_host` and test with `remote_test_connection`.
-3. Prefer narrow tools over broad shell access:
+3. When the user wants to work in a remote project, prefer workspace tools:
+   - use `remote_workspace_bootstrap` to check environment readiness
+   - use `remote_tree` to inspect project structure
+   - use `remote_search_text` to locate code
+   - use `remote_git_status` before and after edits
+   - use `remote_replace_in_file` for narrow exact edits when writes are enabled
+4. Prefer narrow tools over broad shell access:
    - use `remote_list_dir` before reading unknown paths
    - use `remote_read_file` for file inspection
    - use `remote_write_file` only when the user clearly wants a remote edit
    - use `remote_run` for tests, service status, logs, and other explicit commands
-4. Keep remote commands non-interactive.
-5. Do not request or echo private key material. Only ask for the identity file path.
-6. Summarize remote command output clearly when the user cannot see the tool output.
+5. Keep remote commands non-interactive.
+6. Do not request or echo private key material. Only ask for the identity file path.
+7. Summarize remote command output clearly when the user cannot see the tool output.
 
 ## Safety
 

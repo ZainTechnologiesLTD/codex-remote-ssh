@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Added remote workspace bootstrap checks for OS, shell, user, workspace path, and common development tools.
+- Added remote workspace tree, text search, and git status tools.
+- Added exact-text replacement for allowlisted writable files.
+- Added optional `workspaceRoot` to saved SSH connection profiles.
+
 ## 0.3.1
 
 - Fixed stdio lifecycle handling so async SSH tool calls return results reliably when stdin closes.

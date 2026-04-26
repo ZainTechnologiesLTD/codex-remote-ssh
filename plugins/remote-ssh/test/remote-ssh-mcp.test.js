@@ -4,10 +4,12 @@ const assert = require("node:assert/strict");
 const {
   assertCommandAllowed,
   assertPathAllowed,
+  base64Text,
   cleanHostProfile,
   defaultConfigFile,
   handle,
   normalizeRemotePath,
+  resolveRemoteWorkspacePath,
   tools,
 } = require("../scripts/remote-ssh-mcp.js");
 
@@ -24,6 +26,8 @@ const config = {
 
 assert.equal(assertPathAllowed(config, "/srv/app/current/package.json", "read"), "/srv/app/current/package.json");
 assert.throws(() => assertPathAllowed(config, "/etc/passwd", "read"), /path policy/);
+assert.equal(resolveRemoteWorkspacePath(config, "/srv/app", "current/package.json", "read"), "/srv/app/current/package.json");
+assert.throws(() => resolveRemoteWorkspacePath(config, "/srv/app", "../secrets", "read"), /escapes workspace root/);
 
 assert.doesNotThrow(() => assertCommandAllowed(config, "systemctl status app"));
 assert.throws(() => assertCommandAllowed(config, "cat /etc/passwd"), /allowlist/);
@@ -33,6 +37,11 @@ assert.ok(tools.some((tool) => tool.name === "remote_hosts"));
 assert.ok(tools.some((tool) => tool.name === "remote_add_host"));
 assert.ok(tools.some((tool) => tool.name === "remote_remove_host"));
 assert.ok(tools.some((tool) => tool.name === "remote_test_connection"));
+assert.ok(tools.some((tool) => tool.name === "remote_workspace_bootstrap"));
+assert.ok(tools.some((tool) => tool.name === "remote_tree"));
+assert.ok(tools.some((tool) => tool.name === "remote_search_text"));
+assert.ok(tools.some((tool) => tool.name === "remote_git_status"));
+assert.ok(tools.some((tool) => tool.name === "remote_replace_in_file"));
 assert.ok(tools.some((tool) => tool.name === "remote_tail_file"));
 
 assert.match(defaultConfigFile(), /remote-ssh-hosts\.json$/);
@@ -41,6 +50,7 @@ assert.deepEqual(
   cleanHostProfile({
     sshHost: "alice@example.com",
     identityFile: "~/.ssh/id_ed25519",
+    workspaceRoot: "/home/alice/project",
     allowedPaths: ["/home/alice"],
   }),
   {
@@ -48,6 +58,7 @@ assert.deepEqual(
     host: "example.com",
     port: 22,
     identityFile: "~/.ssh/id_ed25519",
+    workspaceRoot: "/home/alice/project",
     allowedPaths: ["/home/alice"],
     allowWrites: false,
     strictHostKeyChecking: true,
@@ -73,7 +84,9 @@ assert.deepEqual(
   },
 );
 
+assert.equal(base64Text("hello"), "aGVsbG8=");
+
 handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }).then((response) => {
-  assert.ok(response.tools.length >= 10);
+  assert.ok(response.tools.length >= 15);
   console.log("remote-ssh-mcp tests passed");
 });

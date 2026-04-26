@@ -24,6 +24,7 @@ Advanced users can override this with `REMOTE_SSH_CONFIG_FILE` or provide epheme
 | SSH Host | `sshHost` | `user@hostname` or a host from `~/.ssh/config`. |
 | SSH Port | `port` | Defaults to `22`. |
 | Identity File | `identityFile` | Optional. Leave empty to use default SSH behavior. |
+| Workspace Root | `workspaceRoot` | Optional default remote project root. |
 | Allowed Paths | `allowedPaths` | Optional safety policy for file tools. |
 | Allow Writes | `allowWrites` | Defaults to `false`. |
 
@@ -38,6 +39,7 @@ Set this environment variable to a JSON object keyed by host alias.
     "host": "10.0.10.20",
     "port": 22,
     "identityFile": "~/.ssh/id_ed25519_prod",
+    "workspaceRoot": "/srv/app",
     "allowedPaths": ["/srv/app", "/var/log/app"],
     "allowWrites": false,
     "allowCommandExecution": true,
@@ -78,6 +80,7 @@ Set this environment variable to a JSON file path. The file can contain the host
 | `sshConfigHost` | string | optional | Existing host alias from `~/.ssh/config`. |
 | `port` | number | `22` | SSH port. |
 | `identityFile` | string | optional | Private key path. Supports `~`. |
+| `workspaceRoot` | string | optional | Default remote project root for workspace tools. |
 | `knownHostsFile` | string | optional | Custom known hosts file. |
 | `proxyJump` | string | optional | SSH jump host value passed through `-J`. |
 | `strictHostKeyChecking` | boolean | `true` | Keep host key verification enabled by default. |

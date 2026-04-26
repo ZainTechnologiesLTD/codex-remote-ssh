@@ -11,6 +11,10 @@ Modern teams often keep source code, logs, services, and deployment tools on rem
 This plugin exposes clear tools for common remote work:
 
 - add and save SSH connections conversationally
+- inspect whether a remote host is ready for development
+- browse bounded remote workspace trees
+- search text inside remote workspaces
+- check remote Git status
 - discover configured host aliases
 - run non-interactive remote commands
 - list directories
@@ -108,10 +112,15 @@ Use Remote SSH to tail the last 100 lines of /var/log/nginx/error.log on hms.
 | `remote_test_connection` | Validates a saved SSH connection. |
 | `remote_hosts` | Lists configured host aliases and non-secret policy metadata. |
 | `remote_run` | Runs a non-interactive command on a configured host. |
+| `remote_workspace_bootstrap` | Checks remote OS, user, shell, workspace path, and dev tools. |
+| `remote_tree` | Shows a bounded remote workspace tree. |
+| `remote_search_text` | Searches text inside a remote workspace. |
+| `remote_git_status` | Runs Git status in a remote workspace. |
 | `remote_list_dir` | Lists an allowlisted directory. |
 | `remote_stat` | Returns metadata for an allowlisted path. |
 | `remote_read_file` | Reads an allowlisted UTF-8 text file. |
 | `remote_tail_file` | Reads the last lines of an allowlisted text/log file. |
+| `remote_replace_in_file` | Replaces exact text in an allowlisted writable file. |
 | `remote_write_file` | Writes UTF-8 text when `allowWrites=true`. |
 
 ## Security

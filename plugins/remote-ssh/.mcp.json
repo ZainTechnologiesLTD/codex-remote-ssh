@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "remote-ssh": {
+      "command": "node",
+      "args": [
+        "./scripts/remote-ssh-mcp.js"
+      ],
+      "env": {
+        "REMOTE_SSH_HOSTS": "{}",
+        "REMOTE_SSH_MAX_OUTPUT_BYTES": "1048576"
+      }
+    }
+  }
+}

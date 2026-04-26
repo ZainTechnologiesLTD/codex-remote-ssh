@@ -1,0 +1,15 @@
+{
+  "name": "@zain-technologies-ltd/codex-remote-ssh",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Enterprise-grade Remote SSH MCP tools for OpenAI Codex.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/remote-ssh-mcp.test.js",
+    "mcp:tools": "node scripts/remote-ssh-mcp.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

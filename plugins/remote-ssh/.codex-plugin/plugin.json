@@ -1,0 +1,46 @@
+{
+  "name": "remote-ssh",
+  "version": "0.2.0",
+  "description": "Enterprise-grade Remote SSH tools for Codex with host policies, audit logging, and safe file operations.",
+  "author": {
+    "name": "Zain Technologies LTD",
+    "email": "hello@zain-technologies.com",
+    "url": "https://zaintechnologiesltd.github.io/"
+  },
+  "homepage": "https://zaintechnologiesltd.github.io/",
+  "repository": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh",
+  "license": "MIT",
+  "keywords": [
+    "ssh",
+    "remote",
+    "devbox",
+    "terminal",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Remote SSH",
+    "shortDescription": "Enterprise Remote SSH operations for Codex",
+    "longDescription": "Remote SSH by Zain Technologies LTD connects Codex to trusted servers, devboxes, and private infrastructure through a local MCP bridge. It supports host aliases, path allowlists, write opt-in controls, blocked command policies, timeouts, output limits, and JSONL audit logs for professional remote development and operations workflows.",
+    "developerName": "Zain Technologies LTD",
+    "category": "Development",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://zaintechnologiesltd.github.io/",
+    "privacyPolicyURL": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh/blob/main/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh/blob/main/TERMS.md",
+    "defaultPrompt": [
+      "Check my configured remote host health.",
+      "Tail the latest application log over SSH.",
+      "Run tests on my remote devbox."
+    ],
+    "brandColor": "#2563EB",
+    "composerIcon": "./assets/app-icon.svg",
+    "logo": "./assets/app-icon.svg",
+    "screenshots": []
+  }
+}

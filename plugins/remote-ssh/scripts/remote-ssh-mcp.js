@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.3.0";
+const SERVER_VERSION = "0.3.1";
 const PROTOCOL_VERSION = "2024-11-05";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_CONNECT_TIMEOUT_SECONDS = 15;
@@ -607,9 +607,7 @@ function startServer() {
     }
   });
 
-  rl.on("close", () => {
-    process.exit(0);
-  });
+  rl.on("close", () => {});
 }
 
 if (require.main === module) {

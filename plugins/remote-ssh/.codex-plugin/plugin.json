@@ -1,6 +1,6 @@
 {
   "name": "remote-ssh",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Enterprise-grade Remote SSH tools for Codex with host policies, audit logging, and safe file operations.",
   "author": {
     "name": "Zain Technologies LTD",

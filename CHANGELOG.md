@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Fixed stdio lifecycle handling so async SSH tool calls return results reliably when stdin closes.
+
 ## 0.3.0
 
 - Added conversational SSH connection management with `remote_add_host`.

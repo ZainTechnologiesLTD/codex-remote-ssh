@@ -47,6 +47,26 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --globa
 
 Use `--project` instead of `--global` when documenting a single-workspace install.
 
+## Visibility Troubleshooting
+
+If a global install succeeds but the plugin does not appear in Codex after restart, confirm `~/.codex/config.toml` has:
+
+```toml
+[plugins."remote-ssh@codex-marketplace-global"]
+enabled = true
+
+[marketplaces.codex-marketplace-global]
+source_type = "local"
+source = '\\?\C:\Users\<you>'
+```
+
+Then confirm:
+
+```text
+~/.agents/plugins/marketplace.json
+~/.codex/plugins/remote-ssh
+```
+
 ## GitHub Packages
 
 The package name is:

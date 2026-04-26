@@ -49,6 +49,26 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --globa
 
 Global installation is recommended so Remote SSH appears across Codex projects after restart. For local development or one-project installs, use `--project` instead of `--global`.
 
+## Troubleshooting Visibility
+
+After installing globally, restart Codex. If Remote SSH is enabled but still not visible, confirm that `~/.codex/config.toml` includes both entries:
+
+```toml
+[plugins."remote-ssh@codex-marketplace-global"]
+enabled = true
+
+[marketplaces.codex-marketplace-global]
+source_type = "local"
+source = '\\?\C:\Users\<you>'
+```
+
+Also confirm the global marketplace and plugin paths exist:
+
+```text
+~/.agents/plugins/marketplace.json
+~/.codex/plugins/remote-ssh
+```
+
 ## Configuration
 
 Most users should add connections conversationally:

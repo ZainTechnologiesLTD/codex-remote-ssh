@@ -26,6 +26,31 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --globa
 
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.
 
+## Troubleshooting Visibility
+
+After global install, restart Codex. If Remote SSH still does not appear in the plugin UI, confirm that `~/.codex/config.toml` includes both the plugin entry and the marketplace source:
+
+```toml
+[plugins."remote-ssh@codex-marketplace-global"]
+enabled = true
+
+[marketplaces.codex-marketplace-global]
+source_type = "local"
+source = '\\?\C:\Users\<you>'
+```
+
+The global marketplace manifest should exist at:
+
+```text
+~/.agents/plugins/marketplace.json
+```
+
+The installed plugin should exist at:
+
+```text
+~/.codex/plugins/remote-ssh
+```
+
 ## Repository Documents
 
 - [License](./LICENSE)

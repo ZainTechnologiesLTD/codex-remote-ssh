@@ -21,6 +21,8 @@ Modern teams often keep source code, logs, services, and deployment tools on rem
 This plugin exposes clear tools for common remote work:
 
 - add and save SSH connections conversationally
+- browse remote directories visually when the host supports Apps-compatible plugin UI
+- select a remote folder once and save it as the default workspace
 - inspect whether a remote host is ready for development
 - browse bounded remote workspace trees
 - search text inside remote workspaces
@@ -110,6 +112,28 @@ The plugin saves profiles to:
 
 Advanced users can still configure hosts through `REMOTE_SSH_HOSTS` or `REMOTE_SSH_CONFIG_FILE`.
 
+## Visual Folder Picker
+
+Remote SSH includes an Apps-compatible folder picker surface. The intended flow is:
+
+```text
+Choose saved host -> browse remote folders -> select workspace -> work from saved alias
+```
+
+The picker is backed by MCP tools, so the same flow can be used conversationally if the current Codex surface does not render native plugin UI yet:
+
+```text
+Use Remote SSH to open the folder picker for my ubuntu host.
+```
+
+```text
+Browse /home/mehedi/projects on ubuntu and select /home/mehedi/projects/ZAINGUARD as the workspace.
+```
+
+Selecting a workspace saves the directory as `workspaceRoot` and adds it to `allowedPaths` for future file, tree, search, and Git tools.
+
+Authentication remains key-first. If key or SSH config authentication fails, the plugin reports that password setup is needed, but it does not store plaintext passwords in the Remote SSH config.
+
 PowerShell example:
 
 ```powershell
@@ -152,11 +176,15 @@ Use Remote SSH to tail the last 100 lines of /var/log/nginx/error.log on hms.
 
 | Tool | Purpose |
 | --- | --- |
+| `remote_render_folder_picker` | Renders the Apps-compatible visual folder picker for saved hosts. |
 | `remote_connection_wizard` | Adds a connection with the simple Name, SSH Host, SSH Port, Identity File form. |
 | `remote_add_host` | Saves or updates an SSH connection profile. |
 | `remote_remove_host` | Removes a saved SSH connection profile. |
+| `remote_connection_auth_check` | Checks whether key/config auth works or password setup is needed. |
 | `remote_test_connection` | Validates a saved SSH connection. |
 | `remote_hosts` | Lists configured host aliases and non-secret policy metadata. |
+| `remote_browse_dir` | Lists child directories for a visual or conversational folder picker. |
+| `remote_select_workspace` | Saves a selected remote directory as `workspaceRoot` and an allowed path. |
 | `remote_run` | Runs a non-interactive command on a configured host. |
 | `remote_workspace_bootstrap` | Checks remote OS, user, shell, workspace path, and dev tools. |
 | `remote_tree` | Shows a bounded remote workspace tree. |

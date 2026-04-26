@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Added an Apps-compatible visual folder picker resource for saved SSH hosts.
+- Added `remote_render_folder_picker`, `remote_browse_dir`, and `remote_select_workspace`.
+- Added `remote_connection_auth_check` to detect whether key/config authentication works or password setup is needed.
+- Workspace selection now saves `workspaceRoot` and adds the selected directory to `allowedPaths`.
+
 ## 0.5.0
 
 - Added `remote_connection_wizard`, a simple user-facing Add SSH Connection tool with only Name, SSH Host, SSH Port, and Identity File fields.

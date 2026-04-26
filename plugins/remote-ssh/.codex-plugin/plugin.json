@@ -1,6 +1,6 @@
 {
   "name": "remote-ssh",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Enterprise-grade Remote SSH tools for Codex with host policies, audit logging, and safe file operations.",
   "author": {
     "name": "Zain Technologies LTD",
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "Remote SSH",
     "shortDescription": "Enterprise Remote SSH operations for Codex",
-    "longDescription": "Remote SSH by Zain Technologies LTD connects Codex to trusted servers, devboxes, and private infrastructure through a local MCP bridge. It supports a simple Add SSH Connection wizard, conversational connection setup, saved host aliases, remote workspace bootstrap checks, tree/search/git tools, path allowlists, write opt-in controls, blocked command policies, timeouts, output limits, and JSONL audit logs for professional remote development and operations workflows.",
+    "longDescription": "Remote SSH by Zain Technologies LTD connects Codex to trusted servers, devboxes, and private infrastructure through a local MCP bridge. It supports a simple Add SSH Connection wizard, an Apps-compatible remote folder picker, conversational connection setup, saved host aliases, remote workspace bootstrap checks, tree/search/git tools, path allowlists, write opt-in controls, blocked command policies, timeouts, output limits, and JSONL audit logs for professional remote development and operations workflows.",
     "developerName": "Zain Technologies LTD",
     "category": "Development",
     "capabilities": [

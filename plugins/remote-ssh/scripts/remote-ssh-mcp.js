@@ -7,8 +7,9 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.5.0";
+const SERVER_VERSION = "0.6.0";
 const PROTOCOL_VERSION = "2024-11-05";
+const FOLDER_PICKER_TEMPLATE_URI = "ui://remote-ssh/folder-picker.html";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_CONNECT_TIMEOUT_SECONDS = 15;
 const DEFAULT_COMMAND_TIMEOUT_MS = 120000;
@@ -350,10 +351,232 @@ function textResult(payload) {
         text: typeof payload === "string" ? payload : JSON.stringify(payload, null, 2),
       },
     ],
+    structuredContent: typeof payload === "string" ? { text: payload } : payload,
   };
 }
 
+function widgetResult(payload, templateUri) {
+  return {
+    ...textResult(payload),
+    _meta: {
+      "openai/outputTemplate": templateUri,
+      "mcpui/resourceUri": templateUri,
+      "mcpui/toolInvocation/invoking": "Opening remote folder picker",
+      "mcpui/toolInvocation/invoked": "Remote folder picker ready",
+    },
+  };
+}
+
+function parseRemoteDirectoryEntries(stdout, parentPath) {
+  return String(stdout || "")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [name, absolutePath, mode, owner, group, modified] = line.split("\t");
+      return {
+        name,
+        path: absolutePath,
+        type: "directory",
+        permissions: mode,
+        owner,
+        group,
+        modified,
+      };
+    })
+    .filter((entry) => entry.name && entry.path && entry.path !== parentPath)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildBrowseDirCommand(remotePath, limit) {
+  const safeLimit = Math.max(1, Math.min(Number(limit || 200), 1000));
+  const quotedPath = shellQuote(remotePath);
+  return [
+    `test -d ${quotedPath}`,
+    `cd ${quotedPath}`,
+    [
+      "find . -maxdepth 1 -mindepth 1 -type d",
+      "-printf '%f\\t%p\\t%m\\t%u\\t%g\\t%TY-%Tm-%Td %TH:%TM\\n'",
+      "| sort",
+      `| head -n ${safeLimit}`,
+      "| awk -F '\\t' -v root=\"$PWD\" 'BEGIN { OFS=\"\\t\" } { if ($2 == \"./\" $1) $2=root \"/\" $1; print }'",
+    ].join(" "),
+  ].join(" && ");
+}
+
+function selectWorkspaceInConfig(config, alias, workspacePath) {
+  if (!config.hosts[alias]) {
+    throw new Error(`Connection ${alias} does not exist.`);
+  }
+  const normalized = normalizeRemotePath(workspacePath);
+  const host = { ...config.hosts[alias] };
+  const allowedPaths = Array.isArray(host.allowedPaths) ? [...host.allowedPaths] : [];
+  if (!allowedPaths.includes(normalized)) {
+    allowedPaths.push(normalized);
+  }
+  config.hosts[alias] = {
+    ...host,
+    workspaceRoot: normalized,
+    allowedPaths,
+  };
+  return config.hosts[alias];
+}
+
+function classifySshFailure(result) {
+  const stderr = String(result.stderr || "");
+  if (result.exitCode === 0) return "connected";
+  if (/permission denied/i.test(stderr)) return "password_or_key_required";
+  if (/connection refused/i.test(stderr)) return "connection_refused";
+  if (/operation timed out|connection timed out|connecttimeout/i.test(stderr)) return "timeout";
+  if (/could not resolve hostname|name or service not known/i.test(stderr)) return "host_not_found";
+  if (/host key verification failed/i.test(stderr)) return "host_key_verification_failed";
+  return "failed";
+}
+
+const folderPickerHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Remote SSH Folder Picker</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: Canvas; color: CanvasText; }
+    .shell { padding: 16px; display: grid; gap: 12px; }
+    .bar { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; gap: 8px; align-items: center; }
+    select, input, button { font: inherit; min-height: 34px; border: 1px solid color-mix(in srgb, CanvasText 22%, transparent); border-radius: 6px; background: Canvas; color: CanvasText; }
+    select, input { padding: 0 10px; }
+    button { padding: 0 12px; cursor: pointer; }
+    button.primary { background: #2563eb; border-color: #2563eb; color: white; }
+    .crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 13px; }
+    .crumbs button { min-height: 28px; padding: 0 8px; }
+    .list { border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 8px; overflow: hidden; }
+    .row { display: grid; grid-template-columns: 1fr 86px 96px 142px; gap: 8px; align-items: center; padding: 9px 10px; border-top: 1px solid color-mix(in srgb, CanvasText 10%, transparent); }
+    .row:first-child { border-top: 0; }
+    .row:hover { background: color-mix(in srgb, CanvasText 7%, transparent); }
+    .name { font-weight: 600; overflow-wrap: anywhere; }
+    .muted { color: color-mix(in srgb, CanvasText 62%, transparent); font-size: 12px; }
+    .empty, .error { padding: 14px; border: 1px solid color-mix(in srgb, CanvasText 16%, transparent); border-radius: 8px; }
+    .error { border-color: #dc2626; color: #dc2626; }
+    @media (max-width: 640px) {
+      .bar { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="bar">
+      <select id="host"></select>
+      <input id="path" value="/home" aria-label="Remote path" />
+      <button id="go">Open</button>
+    </div>
+    <div id="crumbs" class="crumbs"></div>
+    <div class="bar">
+      <div class="muted" id="status">Choose a host and folder.</div>
+      <span></span>
+      <button class="primary" id="select">Select this folder</button>
+    </div>
+    <section id="content" class="list"></section>
+  </main>
+  <script>
+    const state = { hosts: {}, host: "", path: "/home", entries: [] };
+    const rpc = (() => {
+      let id = 1;
+      const pending = new Map();
+      window.addEventListener("message", (event) => {
+        if (event.source !== window.parent) return;
+        const message = event.data;
+        if (!message || message.jsonrpc !== "2.0") return;
+        if (message.id && pending.has(message.id)) {
+          const { resolve, reject } = pending.get(message.id);
+          pending.delete(message.id);
+          message.error ? reject(new Error(message.error.message)) : resolve(message.result);
+        }
+        if (message.method === "ui/notifications/tool-result") {
+          hydrate(message.params?.structuredContent);
+        }
+      });
+      return (method, params) => new Promise((resolve, reject) => {
+        const request = { jsonrpc: "2.0", id: id++, method, params };
+        pending.set(request.id, { resolve, reject });
+        window.parent.postMessage(request, "*");
+      });
+    })();
+    function hydrate(data) {
+      if (!data) return;
+      if (data.hosts) state.hosts = data.hosts;
+      if (data.selectedHost) state.host = data.selectedHost;
+      if (data.path) state.path = data.path;
+      if (data.entries) state.entries = data.entries;
+      render();
+    }
+    function render() {
+      const host = document.getElementById("host");
+      host.innerHTML = Object.keys(state.hosts).map((name) => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join("");
+      host.value = state.host || Object.keys(state.hosts)[0] || "";
+      state.host = host.value;
+      document.getElementById("path").value = state.path;
+      document.getElementById("status").textContent = state.host ? state.host + ":" + state.path : "No saved hosts.";
+      const parts = state.path.split("/").filter(Boolean);
+      let current = "";
+      document.getElementById("crumbs").innerHTML = ['<button data-path="/">/</button>'].concat(parts.map((part) => {
+        current += "/" + part;
+        return '<button data-path="' + esc(current) + '">' + esc(part) + '</button>';
+      })).join("");
+      const content = document.getElementById("content");
+      content.innerHTML = state.entries.length ? state.entries.map((entry) =>
+        '<div class="row" data-path="' + esc(entry.path) + '"><div><div class="name">' + esc(entry.name) + '</div><div class="muted">' + esc(entry.path) + '</div></div><div class="muted">' + esc(entry.permissions || "") + '</div><div class="muted">' + esc(entry.owner || "") + '</div><div class="muted">' + esc(entry.modified || "") + '</div></div>'
+      ).join("") : '<div class="empty">No child directories found.</div>';
+    }
+    async function browse(path) {
+      try {
+        document.getElementById("status").textContent = "Loading...";
+        const result = await rpc("tools/call", { name: "remote_browse_dir", arguments: { host: state.host, path } });
+        hydrate(result.structuredContent);
+      } catch (error) {
+        document.getElementById("content").innerHTML = '<div class="error">' + esc(error.message) + '</div>';
+      }
+    }
+    document.getElementById("host").addEventListener("change", (event) => { state.host = event.target.value; browse(state.path); });
+    document.getElementById("go").addEventListener("click", () => browse(document.getElementById("path").value));
+    document.getElementById("select").addEventListener("click", async () => {
+      const result = await rpc("tools/call", { name: "remote_select_workspace", arguments: { host: state.host, path: state.path } });
+      hydrate(result.structuredContent);
+      await rpc("ui/update-model-context", { content: [{ type: "text", text: "Remote SSH workspace selected: " + state.host + ":" + state.path }] });
+    });
+    document.getElementById("content").addEventListener("click", (event) => {
+      const row = event.target.closest(".row");
+      if (row) browse(row.dataset.path);
+    });
+    document.getElementById("crumbs").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-path]");
+      if (button) browse(button.dataset.path);
+    });
+    function esc(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+    }
+    render();
+  </script>
+</body>
+</html>`;
+
 const tools = [
+  {
+    name: "remote_render_folder_picker",
+    description: "Render the visual Remote SSH folder picker UI for saved hosts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string", description: "Optional saved host alias to preselect." },
+        path: { type: "string", description: "Optional absolute remote path to open first.", default: "/home" },
+      },
+      additionalProperties: false,
+    },
+    _meta: {
+      "openai/outputTemplate": FOLDER_PICKER_TEMPLATE_URI,
+      "mcpui/resourceUri": FOLDER_PICKER_TEMPLATE_URI,
+    },
+  },
   {
     name: "remote_connection_wizard",
     description: "Add SSH connection using the simple user-facing form: Name, SSH Host, SSH Port, and Identity File.",
@@ -443,11 +666,50 @@ const tools = [
     },
   },
   {
+    name: "remote_connection_auth_check",
+    description: "Check whether a saved SSH connection works with key/config authentication or needs interactive password setup.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string", description: "Configured host alias." },
+      },
+      required: ["host"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "remote_hosts",
     description: "List configured SSH host aliases and their non-secret policy metadata.",
     inputSchema: {
       type: "object",
       properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_browse_dir",
+    description: "Browse child directories for a configured SSH host and absolute remote path.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string", description: "Configured host alias." },
+        path: { type: "string", description: "Absolute remote directory path.", default: "/home" },
+        limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
+      },
+      required: ["host", "path"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "remote_select_workspace",
+    description: "Save an absolute remote directory as the default workspaceRoot and allowed path for a configured host.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        host: { type: "string", description: "Configured host alias." },
+        path: { type: "string", description: "Absolute remote directory path to save as workspace." },
+      },
+      required: ["host", "path"],
       additionalProperties: false,
     },
   },
@@ -611,6 +873,23 @@ const tools = [
 ];
 
 async function callTool(name, args) {
+  if (name === "remote_render_folder_picker") {
+    const hosts = loadHostConfig();
+    const selectedHost = args.host || Object.keys(hosts)[0] || "";
+    const initialPath = args.path || (selectedHost && hosts[selectedHost] && hosts[selectedHost].workspaceRoot) || "/home";
+    return widgetResult(
+      {
+        hosts: Object.fromEntries(
+          Object.entries(hosts).map(([alias, config]) => [alias, redactConfig({ alias, ...config })]),
+        ),
+        selectedHost,
+        path: initialPath,
+        entries: [],
+      },
+      FOLDER_PICKER_TEMPLATE_URI,
+    );
+  }
+
   if (name === "remote_connection_wizard" || name === "remote_add_host") {
     const alias = String(args.name || "").trim();
     if (!alias || !/^[A-Za-z0-9_.-]+$/.test(alias)) {
@@ -652,6 +931,23 @@ async function callTool(name, args) {
 
   const config = getHost(args.host);
 
+  if (name === "remote_connection_auth_check") {
+    const result = await runSsh(config, "printf 'connected\\n'; hostname; whoami", name);
+    const status = classifySshFailure(result);
+    return textResult({
+      ok: result.exitCode === 0,
+      status,
+      host: config.alias,
+      passwordFallbackAvailable: status === "password_or_key_required",
+      passwordStored: false,
+      recommendation:
+        status === "password_or_key_required"
+          ? "Use an SSH key or ~/.ssh/config for normal Codex operation. Password fallback should be used only during setup and must not be stored in plugin config."
+          : undefined,
+      result,
+    });
+  }
+
   if (name === "remote_test_connection") {
     return textResult(await runSsh(config, "printf 'connected\\n'; hostname; whoami", name));
   }
@@ -659,6 +955,41 @@ async function callTool(name, args) {
   if (name === "remote_run") {
     assertCommandAllowed(config, args.command);
     return textResult(await runSsh(config, args.command, name));
+  }
+  if (name === "remote_browse_dir") {
+    const remotePath = assertPathAllowed(config, args.path || "/home", "browse");
+    const result = await runSsh(config, buildBrowseDirCommand(remotePath, args.limit), name);
+    return textResult({
+      host: config.alias,
+      path: remotePath,
+      ok: result.exitCode === 0,
+      status: result.exitCode === 0 ? "ok" : classifySshFailure(result),
+      entries: result.exitCode === 0 ? parseRemoteDirectoryEntries(result.stdout, remotePath) : [],
+      result,
+    });
+  }
+  if (name === "remote_select_workspace") {
+    const remotePath = normalizeRemotePath(args.path);
+    const exists = await runSsh(config, `test -d ${shellQuote(remotePath)} && printf 'directory\\n'`, name);
+    if (exists.exitCode !== 0) {
+      return textResult({
+        saved: false,
+        host: config.alias,
+        path: remotePath,
+        status: classifySshFailure(exists),
+        result: exists,
+      });
+    }
+    const { file, config: writableConfig } = readWritableConfig();
+    const profile = selectWorkspaceInConfig(writableConfig, config.alias, remotePath);
+    writeWritableConfig(file, writableConfig);
+    return textResult({
+      saved: true,
+      host: config.alias,
+      path: remotePath,
+      configFile: file,
+      profile: redactConfig({ alias: config.alias, ...profile }),
+    });
   }
   if (name === "remote_workspace_bootstrap") {
     const root = args.root || config.workspaceRoot || "~";
@@ -760,12 +1091,38 @@ async function handle(request) {
   if (request.method === "initialize") {
     return {
       protocolVersion: PROTOCOL_VERSION,
-      capabilities: { tools: {} },
+      capabilities: { tools: {}, resources: {} },
       serverInfo: { name: "remote-ssh", version: SERVER_VERSION },
     };
   }
   if (request.method === "tools/list") {
     return { tools };
+  }
+  if (request.method === "resources/list") {
+    return {
+      resources: [
+        {
+          uri: FOLDER_PICKER_TEMPLATE_URI,
+          name: "Remote SSH Folder Picker",
+          description: "Visual folder picker for saved Remote SSH hosts.",
+          mimeType: "text/html",
+        },
+      ],
+    };
+  }
+  if (request.method === "resources/read") {
+    if (!request.params || request.params.uri !== FOLDER_PICKER_TEMPLATE_URI) {
+      throw new Error(`Unknown resource: ${request.params && request.params.uri}`);
+    }
+    return {
+      contents: [
+        {
+          uri: FOLDER_PICKER_TEMPLATE_URI,
+          mimeType: "text/html",
+          text: folderPickerHtml,
+        },
+      ],
+    };
   }
   if (request.method === "tools/call") {
     return callTool(request.params.name, request.params.arguments || {});
@@ -818,15 +1175,18 @@ module.exports = {
   assertCommandAllowed,
   assertPathAllowed,
   base64Text,
+  buildBrowseDirCommand,
   cleanHostProfile,
   defaultConfigFile,
   expandHome,
   handle,
   loadHostConfig,
   normalizeRemotePath,
+  parseRemoteDirectoryEntries,
   readWritableConfig,
   redactConfig,
   resolveRemoteWorkspacePath,
+  selectWorkspaceInConfig,
   shellQuote,
   startServer,
   tools,

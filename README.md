@@ -98,6 +98,7 @@ The package publishing workflow lives at:
 ## Key Features
 
 - Local MCP server with no runtime npm dependencies
+- Apps-compatible remote folder picker for selecting and saving a workspace directory
 - SSH host aliases instead of arbitrary target selection
 - Path allowlists for file tools
 - Remote writes disabled by default

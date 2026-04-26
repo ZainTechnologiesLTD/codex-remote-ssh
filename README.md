@@ -34,6 +34,20 @@ See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, se
 - [Architecture](./plugins/remote-ssh/ARCHITECTURE.md)
 - [Configuration](./plugins/remote-ssh/CONFIGURATION.md)
 
+## GitHub Package
+
+The npm package is published to GitHub Packages as:
+
+```text
+@zaintechnologiesltd/codex-remote-ssh
+```
+
+The package publishing workflow lives at:
+
+```text
+.github/workflows/publish-package.yml
+```
+
 ## Key Features
 
 - Local MCP server with no runtime npm dependencies

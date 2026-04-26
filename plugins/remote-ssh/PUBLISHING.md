@@ -44,3 +44,19 @@ Catalog install command:
 ```bash
 npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins
 ```
+
+## GitHub Packages
+
+The package name is:
+
+```text
+@zaintechnologiesltd/codex-remote-ssh
+```
+
+Publishing is handled by:
+
+```text
+.github/workflows/publish-package.yml
+```
+
+Run the workflow manually from GitHub Actions or publish a GitHub release. The workflow uses the repository `GITHUB_TOKEN` with `packages: write`.

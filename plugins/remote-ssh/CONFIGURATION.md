@@ -1,5 +1,7 @@
 # Configuration Reference
 
+Codex Remote SSH supports cross-platform desktop use on Windows, macOS, and Linux. It requires Node.js, the system `ssh` client, and a local Codex plugin/MCP runtime.
+
 Codex Remote SSH can save connection profiles automatically. Most users should ask Codex to add a connection instead of editing JSON by hand.
 
 ```text

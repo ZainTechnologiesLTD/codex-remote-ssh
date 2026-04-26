@@ -4,6 +4,16 @@ Enterprise-grade Remote SSH tools for OpenAI Codex, built by [Zain Technologies 
 
 Codex Remote SSH connects Codex to trusted servers, devboxes, and private infrastructure through a local MCP bridge. It is designed for professional engineering and operations workflows where security, auditability, and least-privilege access matter.
 
+## Platform Support
+
+Codex Remote SSH supports cross-platform desktop use on:
+
+- Windows
+- macOS
+- Linux
+
+The plugin requires a local Codex plugin/MCP runtime, Node.js, filesystem access, and the system `ssh` client. Mobile platforms such as iOS and Android are not currently supported unless Codex provides a compatible local MCP runtime there.
+
 ## Why This Exists
 
 Modern teams often keep source code, logs, services, and deployment tools on remote Linux hosts or private networks. Codex can already run local shell commands, but a marketplace-grade remote plugin should provide safer primitives than raw SSH strings.

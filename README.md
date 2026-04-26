@@ -26,6 +26,16 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --globa
 
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.
 
+## Platform Support
+
+Codex Remote SSH supports cross-platform desktop use on:
+
+- Windows
+- macOS
+- Linux
+
+The plugin requires a local Codex plugin/MCP runtime, Node.js, filesystem access, and the system `ssh` client. Mobile platforms such as iOS and Android are not currently supported unless Codex provides a compatible local MCP runtime there.
+
 ## Troubleshooting Visibility
 
 After global install, restart Codex. If Remote SSH still does not appear in the plugin UI, confirm that `~/.codex/config.toml` includes both the plugin entry and the marketplace source:

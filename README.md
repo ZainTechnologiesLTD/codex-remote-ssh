@@ -21,4 +21,3 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins
 ```
 
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.
-

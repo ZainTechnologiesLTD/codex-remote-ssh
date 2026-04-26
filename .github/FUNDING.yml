@@ -1,0 +1,10 @@
+# GitHub displays these links in the repository "Sponsor" button.
+# Enable GitHub Sponsors or Open Collective for these accounts before relying on
+# the generated buttons in production.
+
+github:
+  - ZainTechnologiesLTD
+
+custom:
+  - https://zaintechnologiesltd.github.io/
+  - https://github.com/sponsors/ZainTechnologiesLTD

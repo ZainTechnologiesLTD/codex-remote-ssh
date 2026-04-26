@@ -26,6 +26,16 @@ npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --globa
 
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.
 
+## Sponsorship
+
+Codex Remote SSH accepts maintenance sponsorship for ongoing security hardening, Codex compatibility updates, cross-platform testing, documentation, and enterprise support.
+
+- GitHub Sponsors: https://github.com/sponsors/ZainTechnologiesLTD
+- Company sponsorship: https://zaintechnologiesltd.github.io/
+- OpenCollective: planned, pending account setup
+
+See [SPONSORS.md](./SPONSORS.md) for sponsorship options and governance.
+
 ## Platform Support
 
 Codex Remote SSH supports cross-platform desktop use on:

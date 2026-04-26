@@ -175,6 +175,16 @@ Read [SECURITY.md](./SECURITY.md) before enabling this plugin for production inf
 
 The default posture is intentionally conservative. Remote writes are opt-in, host aliases are required, and private keys remain outside the plugin.
 
+## Sponsorship
+
+Maintenance sponsorship helps fund Codex compatibility updates, security hardening, cross-platform testing, documentation, and enterprise support for Remote SSH.
+
+- GitHub Sponsors: https://github.com/sponsors/ZainTechnologiesLTD
+- Company sponsorship: https://zaintechnologiesltd.github.io/
+- OpenCollective: planned, pending account setup
+
+See the repository [SPONSORS.md](../../SPONSORS.md) for sponsorship options and governance.
+
 ## Development
 
 ```bash

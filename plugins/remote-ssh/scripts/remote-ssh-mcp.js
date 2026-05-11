@@ -1140,10 +1140,12 @@ async function handle(request) {
   if (request.method === "tools/call") {
     return callTool(request.params.name, request.params.arguments || {});
   }
-  if (request.method === "notifications/initialized") {
+  if (request.method && request.method.startsWith("notifications/")) {
     return {};
   }
-  return {};
+  const err = new Error(`Method not found: ${request.method}`);
+  err.code = -32601;
+  throw err;
 }
 
 function writeResponse(id, result) {
@@ -1152,12 +1154,13 @@ function writeResponse(id, result) {
 }
 
 function writeError(id, error) {
-  if (id === undefined || id === null) return;
+  if (id === undefined) return;
+  const code = Number.isInteger(error && error.code) ? error.code : -32000;
   process.stdout.write(
     JSON.stringify({
       jsonrpc: "2.0",
-      id,
-      error: { code: -32000, message: error.message },
+      id: id === undefined ? null : id,
+      error: { code, message: error.message },
     }) + "\n",
   );
 }
@@ -1170,10 +1173,17 @@ function startServer() {
     let request;
     try {
       request = JSON.parse(line);
+    } catch (error) {
+      const parseError = new Error(`Parse error: ${error.message}`);
+      parseError.code = -32700;
+      writeError(null, parseError);
+      return;
+    }
+    try {
       const result = await handle(request);
       writeResponse(request.id, result);
     } catch (error) {
-      writeError(request && request.id, error);
+      writeError(request.id, error);
     }
   });
 

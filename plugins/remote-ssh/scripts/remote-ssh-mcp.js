@@ -696,7 +696,7 @@ const tools = [
         path: { type: "string", description: "Absolute remote directory path.", default: "/home" },
         limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
       },
-      required: ["host", "path"],
+      required: ["host"],
       additionalProperties: false,
     },
   },

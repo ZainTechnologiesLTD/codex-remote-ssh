@@ -403,18 +403,20 @@ function buildBrowseDirCommand(remotePath, limit) {
   ].join(" && ");
 }
 
-function selectWorkspaceInConfig(config, alias, workspacePath) {
-  if (!config.hosts[alias]) {
+function selectWorkspaceInConfig(config, alias, workspacePath, seedProfile) {
+  const normalized = normalizeRemotePath(workspacePath);
+  const existing = config.hosts[alias];
+  if (!existing && !seedProfile) {
     throw new Error(`Connection ${alias} does not exist.`);
   }
-  const normalized = normalizeRemotePath(workspacePath);
-  const host = { ...config.hosts[alias] };
-  const allowedPaths = Array.isArray(host.allowedPaths) ? [...host.allowedPaths] : [];
+  const base = existing ? { ...existing } : { ...seedProfile };
+  delete base.alias;
+  const allowedPaths = Array.isArray(base.allowedPaths) ? [...base.allowedPaths] : [];
   if (!allowedPaths.includes(normalized)) {
     allowedPaths.push(normalized);
   }
   config.hosts[alias] = {
-    ...host,
+    ...base,
     workspaceRoot: normalized,
     allowedPaths,
   };
@@ -981,7 +983,7 @@ async function callTool(name, args) {
       });
     }
     const { file, config: writableConfig } = readWritableConfig();
-    const profile = selectWorkspaceInConfig(writableConfig, config.alias, remotePath);
+    const profile = selectWorkspaceInConfig(writableConfig, config.alias, remotePath, config);
     writeWritableConfig(file, writableConfig);
     return textResult({
       saved: true,

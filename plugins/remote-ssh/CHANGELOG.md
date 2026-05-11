@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+- Fixed `remote_browse_dir` input schema: `path` is no longer marked as required so the documented `/home` default is actually reachable.
+- Fixed `remote_select_workspace` failing for hosts loaded from `REMOTE_SSH_HOSTS` or other non-file sources; the writable config is now seeded from the resolved host profile.
+- Hardened `remote_write_file`: dropped the dead `operator` ternary in favor of POSIX noclobber (`set -C`) for atomic no-overwrite semantics, and rejected non-string `content` with a clear error.
+- Hardened `remote_search_text`: empty queries are rejected up front, and the pattern is now passed via `-e` plus a `--` separator so queries beginning with `-` are no longer interpreted as `rg`/`grep` flags.
+- Made `audit()` resilient: the audit log's parent directory is created on demand and append failures are surfaced to stderr instead of crashing the active SSH tool call.
+- JSON-RPC layer now returns proper error codes: unknown methods produce `-32601 Method not found` instead of a misleading empty success, JSON parse failures emit `-32700` with `id: null`, and handler-attached `error.code` values are honored.
+- Rejected blank `name` in `remote_remove_host` and ignored malformed user-supplied `blockedCommandPatterns` regexes so they no longer crash command validation.
+- Extended the test suite to cover the new behaviors (env-host workspace seeding, browse-dir schema, JSON-RPC error code).
+
 ## 0.6.0
 
 - Added an Apps-compatible visual folder picker resource for saved SSH hosts.

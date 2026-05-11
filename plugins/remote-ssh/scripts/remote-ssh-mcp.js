@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 const readline = require("node:readline");
 
-const SERVER_VERSION = "0.6.0";
+const SERVER_VERSION = "0.6.1";
 const PROTOCOL_VERSION = "2024-11-05";
 const FOLDER_PICKER_TEMPLATE_URI = "ui://remote-ssh/folder-picker.html";
 const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;

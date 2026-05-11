@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Patch release rolling up the bug fixes and robustness improvements from #1 (`remote_browse_dir` schema, `remote_select_workspace` env-host persistence, `remote_write_file` no-clobber, audit log resilience, JSON-RPC `-32601`/`-32700` error codes, `remote_search_text` query hardening, input validation for `remote_remove_host`/`blockedCommandPatterns`).
+- See [plugins/remote-ssh/CHANGELOG.md](./plugins/remote-ssh/CHANGELOG.md) for the per-tool detail.
+
 ## 0.6.0
 
 - Added an Apps-compatible visual folder picker resource for saved SSH hosts.

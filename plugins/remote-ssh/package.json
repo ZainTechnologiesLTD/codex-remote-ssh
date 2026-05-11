@@ -17,14 +17,23 @@
     "url": "https://github.com/ZainTechnologiesLTD/codex-remote-ssh/issues"
   },
   "keywords": [
+    "ai-agent",
+    "audit-logging",
+    "cli",
     "codex",
     "codex-plugin",
-    "mcp",
-    "ssh",
-    "remote-ssh",
-    "remote-development",
+    "developer-tools",
     "devops",
-    "developer-tools"
+    "enterprise",
+    "mcp",
+    "model-context-protocol",
+    "nodejs",
+    "openai-codex",
+    "remote-development",
+    "remote-ssh",
+    "secure-shell",
+    "ssh",
+    "zain-technologies"
   ],
   "bin": {
     "codex-remote-ssh": "scripts/remote-ssh-cli.js",

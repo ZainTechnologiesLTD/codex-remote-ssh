@@ -1078,11 +1078,15 @@ async function callTool(name, args) {
     if (!config.allowWrites) {
       throw new Error(`Writes are disabled for host alias ${config.alias}. Set allowWrites=true to enable.`);
     }
+    if (typeof args.content !== "string") {
+      throw new Error("remote_write_file requires content as a UTF-8 string.");
+    }
     const remotePath = assertPathAllowed(config, args.path, "write");
     const encoded = Buffer.from(args.content, "utf8").toString("base64");
-    const operator = args.overwrite ? ">" : ">";
-    const guard = args.overwrite ? "" : `test ! -e ${shellQuote(remotePath)} && `;
-    const writeCommand = `${guard}printf %s ${shellQuote(encoded)} | base64 -d ${operator} ${shellQuote(remotePath)}`;
+    const quotedPath = shellQuote(remotePath);
+    const writeCommand = args.overwrite
+      ? `printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`
+      : `set -C; printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`;
     return textResult(await runSsh(config, writeCommand, name));
   }
 

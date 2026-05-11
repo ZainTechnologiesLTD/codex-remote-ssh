@@ -189,7 +189,14 @@ function audit(event) {
     version: SERVER_VERSION,
     ...event,
   };
-  fs.appendFileSync(expandHome(auditPath), `${JSON.stringify(record)}\n`);
+
+  const resolved = expandHome(auditPath);
+  try {
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.appendFileSync(resolved, `${JSON.stringify(record)}\n`);
+  } catch (error) {
+    process.stderr.write(`remote-ssh: audit log write failed (${error.message})\n`);
+  }
 }
 
 function shellQuote(value) {

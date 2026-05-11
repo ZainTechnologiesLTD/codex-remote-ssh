@@ -268,7 +268,11 @@ function assertCommandAllowed(config, command) {
   }
 
   const blocked = (config.blockedCommandPatterns || []).find((pattern) => {
-    return new RegExp(pattern, "i").test(command);
+    try {
+      return new RegExp(pattern, "i").test(command);
+    } catch {
+      return false;
+    }
   });
   if (blocked) {
     throw new Error(`Command denied by policy for host alias ${config.alias}: ${blocked}`);
@@ -920,6 +924,9 @@ async function callTool(name, args) {
 
   if (name === "remote_remove_host") {
     const alias = String(args.name || "").trim();
+    if (!alias) {
+      throw new Error("remote_remove_host requires a non-empty name.");
+    }
     const { file, config } = readWritableConfig();
     if (!config.hosts[alias]) {
       throw new Error(`Connection ${alias} does not exist in ${file}.`);

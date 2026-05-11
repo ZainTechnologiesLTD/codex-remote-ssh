@@ -141,10 +141,42 @@ assert.deepEqual(selected.allowedPaths, ["/home/mehedi", "/home/mehedi/projects/
 assert.equal(selected.identityFile, "~/.ssh/id_ed25519");
 assert.throws(() => selectWorkspaceInConfig(writableConfig, "missing", "/home/mehedi"), /does not exist/);
 
+const writableConfigEmpty = { hosts: {} };
+const seedProfile = {
+  alias: "envbox",
+  user: "envuser",
+  host: "10.0.0.5",
+  identityFile: "~/.ssh/id_ed25519",
+  allowedPaths: ["/srv"],
+  allowWrites: false,
+};
+const seededSelection = selectWorkspaceInConfig(writableConfigEmpty, "envbox", "/srv/app", seedProfile);
+assert.equal(seededSelection.workspaceRoot, "/srv/app");
+assert.deepEqual(seededSelection.allowedPaths, ["/srv", "/srv/app"]);
+assert.equal(seededSelection.user, "envuser");
+assert.equal(seededSelection.host, "10.0.0.5");
+assert.equal(seededSelection.alias, undefined, "alias field should not leak into the saved profile");
+
+const browseDir = tools.find((tool) => tool.name === "remote_browse_dir");
+assert.deepEqual(browseDir.inputSchema.required, ["host"], "remote_browse_dir should only require 'host'");
+
 handle({ jsonrpc: "2.0", id: 1, method: "tools/list" }).then((response) => {
   assert.ok(response.tools.length >= 20);
   return handle({ jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri: "ui://remote-ssh/folder-picker.html" } });
 }).then((response) => {
   assert.match(response.contents[0].text, /Remote SSH Folder Picker/);
+  return handle({ jsonrpc: "2.0", id: 3, method: "notifications/initialized" });
+}).then((response) => {
+  assert.deepEqual(response, {}, "notifications/* should return empty result");
+  return handle({ jsonrpc: "2.0", id: 4, method: "totally/unknown" }).then(
+    () => {
+      throw new Error("Unknown methods should throw with -32601");
+    },
+    (error) => {
+      assert.equal(error.code, -32601, "unknown method should carry JSON-RPC -32601 code");
+      assert.match(error.message, /Method not found/);
+    },
+  );
+}).then(() => {
   console.log("remote-ssh-mcp tests passed");
 });

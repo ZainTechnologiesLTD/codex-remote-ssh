@@ -189,7 +189,14 @@ function audit(event) {
     version: SERVER_VERSION,
     ...event,
   };
-  fs.appendFileSync(expandHome(auditPath), `${JSON.stringify(record)}\n`);
+
+  const resolved = expandHome(auditPath);
+  try {
+    fs.mkdirSync(path.dirname(resolved), { recursive: true });
+    fs.appendFileSync(resolved, `${JSON.stringify(record)}\n`);
+  } catch (error) {
+    process.stderr.write(`remote-ssh: audit log write failed (${error.message})\n`);
+  }
 }
 
 function shellQuote(value) {
@@ -261,7 +268,11 @@ function assertCommandAllowed(config, command) {
   }
 
   const blocked = (config.blockedCommandPatterns || []).find((pattern) => {
-    return new RegExp(pattern, "i").test(command);
+    try {
+      return new RegExp(pattern, "i").test(command);
+    } catch {
+      return false;
+    }
   });
   if (blocked) {
     throw new Error(`Command denied by policy for host alias ${config.alias}: ${blocked}`);
@@ -403,18 +414,20 @@ function buildBrowseDirCommand(remotePath, limit) {
   ].join(" && ");
 }
 
-function selectWorkspaceInConfig(config, alias, workspacePath) {
-  if (!config.hosts[alias]) {
+function selectWorkspaceInConfig(config, alias, workspacePath, seedProfile) {
+  const normalized = normalizeRemotePath(workspacePath);
+  const existing = config.hosts[alias];
+  if (!existing && !seedProfile) {
     throw new Error(`Connection ${alias} does not exist.`);
   }
-  const normalized = normalizeRemotePath(workspacePath);
-  const host = { ...config.hosts[alias] };
-  const allowedPaths = Array.isArray(host.allowedPaths) ? [...host.allowedPaths] : [];
+  const base = existing ? { ...existing } : { ...seedProfile };
+  delete base.alias;
+  const allowedPaths = Array.isArray(base.allowedPaths) ? [...base.allowedPaths] : [];
   if (!allowedPaths.includes(normalized)) {
     allowedPaths.push(normalized);
   }
   config.hosts[alias] = {
-    ...host,
+    ...base,
     workspaceRoot: normalized,
     allowedPaths,
   };
@@ -696,7 +709,7 @@ const tools = [
         path: { type: "string", description: "Absolute remote directory path.", default: "/home" },
         limit: { type: "integer", minimum: 1, maximum: 1000, default: 200 },
       },
-      required: ["host", "path"],
+      required: ["host"],
       additionalProperties: false,
     },
   },
@@ -911,6 +924,9 @@ async function callTool(name, args) {
 
   if (name === "remote_remove_host") {
     const alias = String(args.name || "").trim();
+    if (!alias) {
+      throw new Error("remote_remove_host requires a non-empty name.");
+    }
     const { file, config } = readWritableConfig();
     if (!config.hosts[alias]) {
       throw new Error(`Connection ${alias} does not exist in ${file}.`);
@@ -981,7 +997,7 @@ async function callTool(name, args) {
       });
     }
     const { file, config: writableConfig } = readWritableConfig();
-    const profile = selectWorkspaceInConfig(writableConfig, config.alias, remotePath);
+    const profile = selectWorkspaceInConfig(writableConfig, config.alias, remotePath, config);
     writeWritableConfig(file, writableConfig);
     return textResult({
       saved: true,
@@ -1016,15 +1032,20 @@ async function callTool(name, args) {
     return textResult(await runSsh(config, command, name));
   }
   if (name === "remote_search_text") {
+    if (typeof args.query !== "string" || args.query.length === 0) {
+      throw new Error("remote_search_text requires a non-empty query string.");
+    }
     const target = resolveRemoteWorkspacePath(config, args.root, args.path || ".", "search");
     const limit = Math.max(1, Math.min(Number(args.limit || 200), 1000));
-    const fixed = args.regex ? "" : "-F";
+    const rgMode = args.regex ? "" : "-F ";
     const grepMode = args.regex ? "-E" : "-F";
+    const quotedQuery = shellQuote(args.query);
+    const quotedTarget = shellQuote(target);
     const command = [
       "if command -v rg >/dev/null 2>&1; then",
-      `rg --line-number --hidden --glob '!.git' ${fixed} ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      `rg --line-number --hidden --glob '!.git' ${rgMode}-e ${quotedQuery} -- ${quotedTarget} | head -n ${limit};`,
       "else",
-      `grep -RIn ${grepMode} --exclude-dir=.git ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      `grep -RIn ${grepMode} --exclude-dir=.git -e ${quotedQuery} -- ${quotedTarget} | head -n ${limit};`,
       "fi",
     ].join(" ");
     return textResult(await runSsh(config, command, name));
@@ -1076,11 +1097,15 @@ async function callTool(name, args) {
     if (!config.allowWrites) {
       throw new Error(`Writes are disabled for host alias ${config.alias}. Set allowWrites=true to enable.`);
     }
+    if (typeof args.content !== "string") {
+      throw new Error("remote_write_file requires content as a UTF-8 string.");
+    }
     const remotePath = assertPathAllowed(config, args.path, "write");
     const encoded = Buffer.from(args.content, "utf8").toString("base64");
-    const operator = args.overwrite ? ">" : ">";
-    const guard = args.overwrite ? "" : `test ! -e ${shellQuote(remotePath)} && `;
-    const writeCommand = `${guard}printf %s ${shellQuote(encoded)} | base64 -d ${operator} ${shellQuote(remotePath)}`;
+    const quotedPath = shellQuote(remotePath);
+    const writeCommand = args.overwrite
+      ? `printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`
+      : `set -C; printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`;
     return textResult(await runSsh(config, writeCommand, name));
   }
 
@@ -1127,10 +1152,12 @@ async function handle(request) {
   if (request.method === "tools/call") {
     return callTool(request.params.name, request.params.arguments || {});
   }
-  if (request.method === "notifications/initialized") {
+  if (request.method && request.method.startsWith("notifications/")) {
     return {};
   }
-  return {};
+  const err = new Error(`Method not found: ${request.method}`);
+  err.code = -32601;
+  throw err;
 }
 
 function writeResponse(id, result) {
@@ -1139,12 +1166,13 @@ function writeResponse(id, result) {
 }
 
 function writeError(id, error) {
-  if (id === undefined || id === null) return;
+  if (id === undefined) return;
+  const code = Number.isInteger(error && error.code) ? error.code : -32000;
   process.stdout.write(
     JSON.stringify({
       jsonrpc: "2.0",
-      id,
-      error: { code: -32000, message: error.message },
+      id: id === undefined ? null : id,
+      error: { code, message: error.message },
     }) + "\n",
   );
 }
@@ -1157,10 +1185,17 @@ function startServer() {
     let request;
     try {
       request = JSON.parse(line);
+    } catch (error) {
+      const parseError = new Error(`Parse error: ${error.message}`);
+      parseError.code = -32700;
+      writeError(null, parseError);
+      return;
+    }
+    try {
       const result = await handle(request);
       writeResponse(request.id, result);
     } catch (error) {
-      writeError(request && request.id, error);
+      writeError(request.id, error);
     }
   });
 

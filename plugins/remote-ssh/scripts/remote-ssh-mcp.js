@@ -1025,15 +1025,20 @@ async function callTool(name, args) {
     return textResult(await runSsh(config, command, name));
   }
   if (name === "remote_search_text") {
+    if (typeof args.query !== "string" || args.query.length === 0) {
+      throw new Error("remote_search_text requires a non-empty query string.");
+    }
     const target = resolveRemoteWorkspacePath(config, args.root, args.path || ".", "search");
     const limit = Math.max(1, Math.min(Number(args.limit || 200), 1000));
-    const fixed = args.regex ? "" : "-F";
+    const rgMode = args.regex ? "" : "-F ";
     const grepMode = args.regex ? "-E" : "-F";
+    const quotedQuery = shellQuote(args.query);
+    const quotedTarget = shellQuote(target);
     const command = [
       "if command -v rg >/dev/null 2>&1; then",
-      `rg --line-number --hidden --glob '!.git' ${fixed} ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      `rg --line-number --hidden --glob '!.git' ${rgMode}-e ${quotedQuery} -- ${quotedTarget} | head -n ${limit};`,
       "else",
-      `grep -RIn ${grepMode} --exclude-dir=.git ${shellQuote(args.query)} ${shellQuote(target)} | head -n ${limit};`,
+      `grep -RIn ${grepMode} --exclude-dir=.git -e ${quotedQuery} -- ${quotedTarget} | head -n ${limit};`,
       "fi",
     ].join(" ");
     return textResult(await runSsh(config, command, name));

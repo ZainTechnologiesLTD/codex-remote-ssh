@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2
+
+- Fixed macOS compatibility in `remote_browse_dir` by using portable `stat -f` when GNU `find -printf` is unsupported.
+- Fixed macOS compatibility in `remote_write_file` base64 decoding by providing a portable `decode_base64` shell function using fallback tools (e.g. `base64 -d`, `base64 -D`, `openssl`).
+- Prevented CRLF to LF conversion when replacing file content on Windows hosts by reading bytes instead of text.
+- Added host configurations validation and try-catch safety wrapper around configuration file reading.
+- Hardened the `codex-remote-ssh` CLI port verification so it handles input port ranges correctly.
+
 ## 0.6.1
 
 - Fixed `remote_browse_dir` input schema: `path` is no longer marked as required so the documented `/home` default is actually reachable.

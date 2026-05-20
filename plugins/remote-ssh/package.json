@@ -1,6 +1,6 @@
 {
   "name": "@zaintechnologiesltd/codex-remote-ssh",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Enterprise-grade Remote SSH MCP tools for OpenAI Codex.",
   "license": "MIT",
   "author": {

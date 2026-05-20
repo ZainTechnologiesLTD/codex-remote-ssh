@@ -59,6 +59,25 @@ If the repository keeps the included `.agents/plugins/marketplace.json` catalog,
 npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --global
 ```
 
+### Codex App Marketplace Form
+
+In Codex, open **Plugins**, choose **Create > Add marketplace**, and enter:
+
+```text
+Source: ZainTechnologiesLTD/codex-remote-ssh
+Git ref: main
+Sparse paths:
+.agents/plugins
+plugins/remote-ssh
+```
+
+The equivalent Codex CLI commands are:
+
+```bash
+codex plugin marketplace add ZainTechnologiesLTD/codex-remote-ssh --ref main --sparse .agents/plugins --sparse plugins/remote-ssh
+codex plugin add remote-ssh@zain-technologies-ltd
+```
+
 Global installation is recommended so Remote SSH appears across Codex projects after restart. For local development or one-project installs, use `--project` instead of `--global`.
 
 ## Troubleshooting Visibility

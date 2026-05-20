@@ -24,6 +24,27 @@ Or install from the repository catalog:
 npx codex-marketplace add ZainTechnologiesLTD/codex-remote-ssh --plugins --global
 ```
 
+## Add Marketplace In Codex App
+
+In Codex, open **Plugins**, choose **Create > Add marketplace**, and enter:
+
+```text
+Source: ZainTechnologiesLTD/codex-remote-ssh
+Git ref: main
+Sparse paths:
+.agents/plugins
+plugins/remote-ssh
+```
+
+The same setup from the Codex CLI is:
+
+```bash
+codex plugin marketplace add ZainTechnologiesLTD/codex-remote-ssh --ref main --sparse .agents/plugins --sparse plugins/remote-ssh
+codex plugin add remote-ssh@zain-technologies-ltd
+```
+
+Restart Codex after installing so the Remote SSH plugin appears in new chats.
+
 See [plugins/remote-ssh/README.md](./plugins/remote-ssh/README.md) for setup, security, and development details.
 
 ## Sponsorship

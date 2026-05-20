@@ -79,6 +79,7 @@ function loadHostConfig() {
   const configFile = process.env.REMOTE_SSH_CONFIG_FILE;
   if (configFile) {
     const resolved = expandHome(configFile);
+    if (!fs.existsSync(resolved)) return {};
     const parsed = parseJson(fs.readFileSync(resolved, "utf8"), `REMOTE_SSH_CONFIG_FILE ${resolved}`);
     return parsed.hosts || parsed;
   }
@@ -123,9 +124,18 @@ function parseSshHost(input) {
 function cleanHostProfile(args) {
   const parsed = parseSshHost(args.sshHost);
   const allowedPaths = Array.isArray(args.allowedPaths) ? args.allowedPaths : [];
+  
+  let port = 22;
+  if (args.port) {
+    const p = Number(args.port);
+    if (Number.isInteger(p) && p > 0 && p <= 65535) {
+      port = p;
+    }
+  }
+
   const profile = {
     ...parsed,
-    port: args.port || 22,
+    port,
     identityFile: args.identityFile || undefined,
     workspaceRoot: args.workspaceRoot || undefined,
     allowedPaths: allowedPaths.length > 0 ? allowedPaths : args.workspaceRoot ? [args.workspaceRoot] : [],
@@ -404,13 +414,15 @@ function buildBrowseDirCommand(remotePath, limit) {
   return [
     `test -d ${quotedPath}`,
     `cd ${quotedPath}`,
-    [
-      "find . -maxdepth 1 -mindepth 1 -type d",
-      "-printf '%f\\t%p\\t%m\\t%u\\t%g\\t%TY-%Tm-%Td %TH:%TM\\n'",
-      "| sort",
-      `| head -n ${safeLimit}`,
-      "| awk -F '\\t' -v root=\"$PWD\" 'BEGIN { OFS=\"\\t\" } { if ($2 == \"./\" $1) $2=root \"/\" $1; print }'",
-    ].join(" "),
+    `if [ "$(uname)" = "Darwin" ]; then`,
+    `  find . -maxdepth 1 -mindepth 1 -type d | head -n ${safeLimit} | while read -r d; do`,
+    `    name="\${d#./}"`,
+    `    abs="${remotePath === "/" ? "" : remotePath}/\${name}"`,
+    `    stat -f "\${name}\\t\${abs}\\t%Lp\\t%Su\\t%Sg\\t%Sm" -t "%Y-%m-%d %H:%M" "\$d" 2>/dev/null`,
+    `  done`,
+    `else`,
+    `  find . -maxdepth 1 -mindepth 1 -type d -printf '%f\\t%p\\t%m\\t%u\\t%g\\t%TY-%Tm-%Td %TH:%TM\\n' | sort | head -n ${safeLimit} | awk -F '\\t' -v root="$PWD" 'BEGIN { OFS="\\t" } { if ($2 == "./" $1) $2=root "/" $1; print }'`,
+    `fi`,
   ].join(" && ");
 }
 
@@ -1065,12 +1077,12 @@ async function callTool(name, args) {
       `p = pathlib.Path(${JSON.stringify(remotePath)})`,
       `old = base64.b64decode(${JSON.stringify(base64Text(args.oldText))}).decode('utf-8')`,
       `new = base64.b64decode(${JSON.stringify(base64Text(args.newText))}).decode('utf-8')`,
-      "text = p.read_text(encoding='utf-8')",
+      "text = p.read_bytes().decode('utf-8')",
       "count = text.count(old)",
       `expected = ${expected}`,
       "if count != expected:",
       "    raise SystemExit(f'expected {expected} replacement(s), found {count}')",
-      "p.write_text(text.replace(old, new), encoding='utf-8')",
+      "p.write_bytes(text.replace(old, new).encode('utf-8'))",
       "print(f'replaced {count} occurrence(s)')",
     ].join("\n");
     const command = `python3 -c ${shellQuote(script)}`;
@@ -1103,9 +1115,19 @@ async function callTool(name, args) {
     const remotePath = assertPathAllowed(config, args.path, "write");
     const encoded = Buffer.from(args.content, "utf8").toString("base64");
     const quotedPath = shellQuote(remotePath);
-    const writeCommand = args.overwrite
-      ? `printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`
-      : `set -C; printf %s ${shellQuote(encoded)} | base64 -d > ${quotedPath}`;
+    const writeCommand = [
+      `decode_base64() {`,
+      `  if base64 --decode < /dev/null >/dev/null 2>&1; then base64 --decode;`,
+      `  elif base64 -d < /dev/null >/dev/null 2>&1; then base64 -d;`,
+      `  elif base64 -D < /dev/null >/dev/null 2>&1; then base64 -D;`,
+      `  elif openssl base64 -d < /dev/null >/dev/null 2>&1; then openssl base64 -d;`,
+      `  else echo "No base64 decoder" >&2; exit 1; fi`,
+      `}`,
+      `mkdir -p "$(dirname ${quotedPath})"`,
+      args.overwrite
+        ? `printf %s ${shellQuote(encoded)} | decode_base64 > ${quotedPath}`
+        : `set -C; printf %s ${shellQuote(encoded)} | decode_base64 > ${quotedPath}`,
+    ].join("\n");
     return textResult(await runSsh(config, writeCommand, name));
   }
 

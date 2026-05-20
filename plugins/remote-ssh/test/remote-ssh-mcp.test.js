@@ -94,8 +94,28 @@ assert.deepEqual(
 
 assert.equal(base64Text("hello"), "aGVsbG8=");
 
+assert.deepEqual(
+  cleanHostProfile({
+    sshHost: "test@example.com",
+    port: "invalid",
+  }),
+  {
+    user: "test",
+    host: "example.com",
+    port: 22,
+    allowedPaths: [],
+    allowWrites: false,
+    strictHostKeyChecking: true,
+    connectTimeoutSeconds: 15,
+    commandTimeoutMs: 120000,
+    maxOutputBytes: 1048576,
+  }
+);
+
 assert.match(buildBrowseDirCommand("/home/alice/My Project", 25), /find \. -maxdepth 1 -mindepth 1 -type d/);
 assert.match(buildBrowseDirCommand("/home/alice/My Project", 25), /head -n 25/);
+assert.match(buildBrowseDirCommand("/home/alice/My Project", 25), /Darwin/);
+assert.match(buildBrowseDirCommand("/home/alice/My Project", 25), /stat -f/);
 
 assert.deepEqual(
   parseRemoteDirectoryEntries(
